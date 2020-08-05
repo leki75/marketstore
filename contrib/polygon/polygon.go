@@ -89,19 +89,28 @@ func (pf *PolygonFetcher) Run() {
 		api.SetBaseURL(pf.config.BaseURL)
 	}
 
-	var subscription []string
+	var subscriptions []string
+	subscribeTo := func(stream string) {
+		if len(pf.config.Symbols) == 0 {
+			subscriptions = append(subscriptions, fmt.Sprintf("%s.*", stream))
+		} else {
+			for _, symbol := range pf.config.Symbols {
+				subscriptions = append(subscriptions, fmt.Sprintf("%s.%s", stream, symbol))
+			}
+		}
+	}
 	for t := range pf.types {
 		switch t {
 		case "bars":
-			subscription = append(subscription, "AM.*")
+			subscribeTo("AM")
 		case "quotes":
-			subscription = append(subscription, "Q.*")
+			subscribeTo("Q")
 		case "trades":
-			subscription = append(subscription, "T.*")
+			subscribeTo("T")
 		}
 	}
 
-	ws := streaming.NewClient(pf.config.WSServers+"/stocks", pf.config.APIKey, strings.Join(subscription, ","))
+	ws := streaming.NewClient(pf.config.WSServers+"/stocks", pf.config.APIKey, strings.Join(subscriptions, ","))
 	ws.TradeHandler = handlers.TradeHandler
 	ws.QuoteHandler = handlers.QuoteHandler
 	ws.AggregateHandler = handlers.BarsHandlerWrapper(pf.config.AddTickCountToBars)
